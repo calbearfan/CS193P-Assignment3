@@ -82,7 +82,7 @@
     [self pushOperand:[self.display.text doubleValue]];
     self.userIsInTheMiddleOfEnteringNumber = NO;
     self.userHasEnteredDecimalPoint = NO;
-}
+} 
 
 - (IBAction)decimalPointPressed {
     if (self.userIsInTheMiddleOfEnteringNumber)
