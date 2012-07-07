@@ -42,15 +42,16 @@
 
 - (double)performOperation:(NSString *)operation
 {
-    NSString * errorMsg;
-    double result = [self.brain performOperation:operation withErrorMessage:&errorMsg];
-    if (errorMsg.length > 0)
-        self.errorDisplay.text = errorMsg;
-    else
-    {
+//    NSString * errorMsg;
+    double result = [self.brain performOperation:operation];
+//    double result = [self.brain performOperation:operation withErrorMessage:&errorMsg];
+//    if (errorMsg.length > 0)
+//        self.errorDisplay.text = errorMsg;
+//    else
+//    {
         self.errorDisplay.text = @"";
         self.historyDisplay.text = [self.historyDisplay.text stringByAppendingFormat:@" %@ =", operation];
-    }
+//    }
 
     return result;
 }
