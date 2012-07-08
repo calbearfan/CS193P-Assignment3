@@ -10,6 +10,17 @@
 
 @interface CalculatorBrain()
 @property (nonatomic, strong) NSMutableArray *programStack;
++ (NSSet *)operations;
++ (NSSet *)zeroParameterOperations;
++ (NSSet *)oneParameterOperations;
++ (NSSet *)twoParameterOperations;
++ (BOOL)isOperation:(NSString *)str;
++ (BOOL)isVariable:(NSString *)str;
++ (BOOL)isZeroParameterOperation:(NSString *)str;
++ (BOOL)isOneParameterOperation:(NSString *)str;
++ (BOOL)isTwoParameterOperation:(NSString *)str;
++ (NSString *)descriptionOfTopOfStack:(NSMutableArray *)stack;
+
 @end
 
 @implementation CalculatorBrain
@@ -21,14 +32,52 @@
     return _programStack;
 }
 
++ (NSSet *)zeroParameterOperations
+{
+    static NSSet * _zeroParameterOperations = nil;
+    
+    if (!_zeroParameterOperations)
+        _zeroParameterOperations = [NSSet setWithObjects:@"π", nil];
+    
+    return _zeroParameterOperations;
+}
+
++ (NSSet *)oneParameterOperations
+{
+    static NSSet * _oneParameterOperations = nil;
+    
+    if (!_oneParameterOperations)
+        _oneParameterOperations = [NSSet setWithObjects:@"sin", @"cos", @"sqrt", @"+/-", nil];
+    
+    return _oneParameterOperations;
+}
+
++ (NSSet *)twoParameterOperations
+{
+    static NSSet * _twoParameterOperations = nil;
+    
+    if (!_twoParameterOperations)
+        _twoParameterOperations = [NSSet setWithObjects:@"+", @"-", @"*", @"/", nil];
+    
+    return _twoParameterOperations;
+}
+
++ (NSSet *)operations
+{
+    static NSMutableSet * _operations = nil;
+    
+    if (!_operations) {
+        _operations = [[NSMutableSet alloc] initWithSet:[self zeroParameterOperations]];
+        [_operations unionSet:[self oneParameterOperations]];
+        [_operations unionSet:[self twoParameterOperations]];
+    }
+    
+    return _operations;
+}
+
 - (id)program
 {
     return [self.programStack copy];
-}
-
-+ (NSString *)descriptionOfProgram:(id)program
-{
-    return @"Implement this in Homework #2";
 }
 
 - (void)pushOperand:(double)operand
@@ -38,7 +87,8 @@
 
 - (void)pushVariableOperand:(NSString *)variableName
 {
-    [self.programStack addObject:variableName];
+    if (![[self class] isOperation:variableName]) 
+        [self.programStack addObject:variableName];
 }
 
 //- (double)peekOperand
@@ -60,6 +110,31 @@
     return [[self class] runProgram:self.program];
 }
 
++ (BOOL)isOperation:(NSString *)str
+{
+    return ([[self operations] containsObject:str]);
+}
+
++ (BOOL)isZeroParameterOperation:(NSString *)str
+{
+    return ([[self zeroParameterOperations] containsObject:str]);
+}
+
++ (BOOL)isOneParameterOperation:(NSString *)str
+{
+    return ([[self oneParameterOperations] containsObject:str]);
+}
+
++ (BOOL)isTwoParameterOperation:(NSString *)str
+{
+    return ([[self twoParameterOperations] containsObject:str]);
+}
+
++ (BOOL)isVariable:(NSString *)str
+{
+    return ![self isOperation:str];
+}
+
 + (double)popOperandOffProgramStack:(NSMutableArray *)stack
 {
     double result = 0;
@@ -77,7 +152,7 @@
         if ([operation isEqualToString:@"+"]) {
             result = [self popOperandOffProgramStack:stack] +
             [self popOperandOffProgramStack:stack];
-        } else if ([@"*" isEqualToString:operation]) {
+        } else if ([operation isEqualToString:@"*"]) {
             result = [self popOperandOffProgramStack:stack] *
             [self popOperandOffProgramStack:stack];
         } else if ([operation isEqualToString:@"-"]) {
@@ -112,6 +187,9 @@
             result = M_PI;
         } else if ([operation isEqualToString:@"+/-"]) {
             result = 0 - [self popOperandOffProgramStack:stack];
+        } else {
+            // assume it is an unmatched variable, which should be zero
+            result = 0;
         }
     }
     
@@ -124,14 +202,108 @@
     if ([program isKindOfClass:[NSArray class]]) {
         stack = [program mutableCopy];
     }
+    
+    if (variableValues)
+    {
+        // find variables and replace with supplied values
+        for (int i=0; i<stack.count; i++)
+        {
+            id elem = [stack objectAtIndex:i];
+            if ([elem isKindOfClass:[NSString class]])
+            {
+                NSString *variableName = elem;
+                id variableValueObject = [variableValues valueForKey:variableName];
+                if ([variableValueObject isKindOfClass:[NSNumber class]])
+                {
+                    // replace element in stack
+                    [stack replaceObjectAtIndex:i withObject:[variableValueObject copy]];
+                }
+            }
+        }
+    }
+    
     return [self popOperandOffProgramStack:stack];
 }
 
 + (double)runProgram:(id)program
 {
-    // implement using empty variable values dictionary
-    NSDictionary *variableValues = [[NSDictionary alloc] init];
-    return [self runProgram:program usingVariableValues:variableValues];
+    return [self runProgram:program usingVariableValues:nil];
+}
+
++ (NSString *)descriptionOfTopOfStack:(NSMutableArray *)stack
+{
+    NSString *desc;
+    
+    id topOfStack = [stack lastObject];
+    if (topOfStack) [stack removeLastObject];
+    
+    if ([topOfStack isKindOfClass:[NSNumber class]])
+    {
+        double value = [topOfStack doubleValue];
+        desc = [NSString stringWithFormat:@"%g", value];
+    }
+    else if ([topOfStack isKindOfClass:[NSString class]])
+    {
+        NSString *token = topOfStack;
+        if ([self isVariable:token]) {
+            desc = token;
+        }
+        else if ([self isZeroParameterOperation:token]) {
+            desc = token;
+        }
+        else if ([self isOneParameterOperation:token]) {
+            if ([token isEqualToString:@"+/-"]) token = @"-";
+            desc = [NSString stringWithFormat:@"%@(%@)", token,
+                    [self descriptionOfTopOfStack:stack]];
+        }
+        else if ([self isTwoParameterOperation:token]) {
+            NSString *operand2 = [self descriptionOfTopOfStack:stack];
+            NSString *operand1 = [self descriptionOfTopOfStack:stack];
+            desc = [NSString stringWithFormat:@"(%@ %@ %@)",
+                    operand1, token, operand2];
+        }
+    }
+    
+    return desc;
+}
+
++ (NSString *)descriptionOfProgram:(id)program
+{
+    NSMutableArray *stack;
+    NSString *desc = @"";
+    
+    if ([program isKindOfClass:[NSArray class]]) {
+        stack = [program mutableCopy];
+    }
+    
+    while (stack.count) {
+        desc = [desc stringByAppendingString:[self descriptionOfTopOfStack:stack]];
+        if (stack.count) {
+            // separate with commas
+            desc = [desc stringByAppendingString:@", "];
+        }
+    }
+    
+    return desc;
+}
+
++ (NSSet *)variablesUsedInProgram:(id)program
+{
+    NSMutableSet *variablesUsed = [[NSMutableSet alloc] init];
+    
+    for (id elem in program)
+    {
+        if ([elem isKindOfClass:[NSString class]] && [self isVariable:elem])
+        {
+            [variablesUsed addObject:elem];
+        }
+    }
+    
+    if ([variablesUsed count] > 0) {
+        return [variablesUsed copy];
+    } else {
+        return nil;
+    }
 }
 
 //- (double)performOperation:(NSString *)operation
