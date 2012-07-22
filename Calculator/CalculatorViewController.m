@@ -17,7 +17,7 @@
 
 - (void)pushOperand:(double)operand;
 - (void)pushVariableOperand:(NSString *)variableName;
-- (double)performOperation:(NSString *)operation;
+- (id)performOperation:(NSString *)operation;
 @end
 
 @implementation CalculatorViewController
@@ -55,7 +55,7 @@
                     variableDisplayString = [variableDisplayString stringByAppendingString:@"  "];
                 }
                 
-                double value = 0;
+                double value = 0.0;
                 if (self.testVariableValues)
                 {
                     id dictionaryValue = [self.testVariableValues valueForKey:elem];
@@ -92,10 +92,10 @@
     [self updateDisplays];
 }
 
-- (double)performOperation:(NSString *)operation
+- (id)performOperation:(NSString *)operation
 {
 //    NSString * errorMsg;
-    double result = [self.brain performOperation:operation usingVariableValues:self.testVariableValues];
+    id result = [self.brain performOperation:operation usingVariableValues:self.testVariableValues];
 //    double result = [self.brain performOperation:operation withErrorMessage:&errorMsg];
 //    if (errorMsg.length > 0)
 //        self.errorDisplay.text = errorMsg;
@@ -128,8 +128,15 @@
         [self enterPressed];
     }
     NSString *operation = [sender currentTitle];
-    double result = [self performOperation:operation];
-    self.display.text = [NSString stringWithFormat:@"%g", result];
+    id result = [self performOperation:operation];
+    if ([result isKindOfClass:[NSNumber class]])
+    {
+        self.display.text = [NSString stringWithFormat:@"%g", [result doubleValue]];
+    }
+    else if ([result isKindOfClass:[NSString class]])
+    {
+        self.display.text = result;
+    }
 }
 
 - (IBAction)variablePressed:(UIButton *)sender {
@@ -201,8 +208,15 @@
     else
     {
         // single operand operation
-        double result = [self performOperation:@"+/-"];
-        self.display.text = [NSString stringWithFormat:@"%g", result];
+        id result = [self performOperation:@"+/-"];
+        if ([result isKindOfClass:[NSNumber class]])
+        {
+            self.display.text = [NSString stringWithFormat:@"%g", [result doubleValue]];
+        }
+        else if ([result isKindOfClass:[NSString class]])
+        {
+            self.display.text = result;
+        }
     }
 }
 
@@ -224,8 +238,15 @@
         self.testVariableValues = [[NSDictionary alloc] initWithObjectsAndKeys:[NSNumber numberWithDouble:1], @"x", [NSNumber numberWithDouble:2.5], @"y", [NSNumber numberWithDouble:3.75], @"foo", nil ];
     }
     id program = [self.brain program];
-    double result = [[[self brain] class] runProgram:program usingVariableValues:[self testVariableValues]];
-    self.display.text = [NSString stringWithFormat:@"%g", result];
+    id result = [[[self brain] class] runProgram:program usingVariableValues:[self testVariableValues]];
+    if ([result isKindOfClass:[NSNumber class]])
+    {
+        self.display.text = [NSString stringWithFormat:@"%g", [result doubleValue]];
+    }
+    else if ([result isKindOfClass:[NSString class]])
+    {
+        self.display.text = result;
+    }
     [self updateDisplays];
 }
 
@@ -250,8 +271,15 @@
     if (!self.userIsInTheMiddleOfEnteringNumber)
     {
         id program = [self.brain program];
-        double result = [[[self brain] class] runProgram:program usingVariableValues:[self testVariableValues]];
-        self.display.text = [NSString stringWithFormat:@"%g", result];
+        id result = [[[self brain] class] runProgram:program usingVariableValues:[self testVariableValues]];
+        if ([result isKindOfClass:[NSNumber class]])
+        {
+            self.display.text = [NSString stringWithFormat:@"%g", [result doubleValue]];
+        }
+        else if ([result isKindOfClass:[NSString class]])
+        {
+            self.display.text = result;
+        }
         [self updateDisplays];
     }
 }

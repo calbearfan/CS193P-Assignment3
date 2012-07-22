@@ -14,15 +14,15 @@
 - (void)pushVariableOperand:(NSString *)variableName;
 - (void)removeTopOfStack;
 //- (double)performOperation:(NSString *)operation withErrorMessage:(NSString **)pErrMsg;
-- (double)performOperation:(NSString *)operation;
-- (double)performOperation:(NSString *)operation usingVariableValues:(NSDictionary *)variableValues;
+- (id)performOperation:(NSString *)operation;
+- (id)performOperation:(NSString *)operation usingVariableValues:(NSDictionary *)variableValues;
 - (void)performClear;
 
 @property (nonatomic, readonly) id program;
 
 + (NSString *)descriptionOfProgram:(id)program;
-+ (double)runProgram:(id)program;
-+ (double)runProgram:(id)program usingVariableValues:(NSDictionary *)variableValues;
++ (id)runProgram:(id)program;
++ (id)runProgram:(id)program usingVariableValues:(NSDictionary *)variableValues;
 + (NSSet *)variablesUsedInProgram:(id)program;
 
 @end
