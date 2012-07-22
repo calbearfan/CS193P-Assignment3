@@ -12,8 +12,10 @@
 
 - (void)pushOperand:(double)operand;
 - (void)pushVariableOperand:(NSString *)variableName;
+- (void)removeTopOfStack;
 //- (double)performOperation:(NSString *)operation withErrorMessage:(NSString **)pErrMsg;
 - (double)performOperation:(NSString *)operation;
+- (double)performOperation:(NSString *)operation usingVariableValues:(NSDictionary *)variableValues;
 - (void)performClear;
 
 @property (nonatomic, readonly) id program;

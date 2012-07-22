@@ -20,6 +20,7 @@
 + (BOOL)isOneParameterOperation:(NSString *)str;
 + (BOOL)isTwoParameterOperation:(NSString *)str;
 + (NSString *)descriptionOfTopOfStack:(NSMutableArray *)stack;
++ (NSString *)peekAtOperationOnTopOfStack:(NSMutableArray *)stack;
 
 @end
 
@@ -87,8 +88,18 @@
 
 - (void)pushVariableOperand:(NSString *)variableName
 {
-    if (![[self class] isOperation:variableName]) 
+    if (![[self class] isOperation:variableName])
+    {
         [self.programStack addObject:variableName];
+    }
+}
+
+- (void)removeTopOfStack
+{
+    if ([self.programStack count] > 0)
+    {
+        [self.programStack removeLastObject];
+    }
 }
 
 //- (double)peekOperand
@@ -104,10 +115,15 @@
 //    return [operandObject doubleValue];
 //}
 
-- (double)performOperation:(NSString *)operation
+- (double)performOperation:(NSString *)operation usingVariableValues:(NSDictionary *)variableValues
 {
     [self.programStack addObject:operation];
-    return [[self class] runProgram:self.program];
+    return [[self class] runProgram:self.program usingVariableValues:variableValues];
+}
+
+- (double)performOperation:(NSString *)operation
+{
+    return [self performOperation:operation usingVariableValues:nil];
 }
 
 + (BOOL)isOperation:(NSString *)str
@@ -203,21 +219,34 @@
         stack = [program mutableCopy];
     }
     
-    if (variableValues)
+    // find variables and replace with supplied values
+    for (int i=0; i<stack.count; i++)
     {
-        // find variables and replace with supplied values
-        for (int i=0; i<stack.count; i++)
+        id elem = [stack objectAtIndex:i];
+        if ([elem isKindOfClass:[NSString class]] &&
+            [self isVariable:elem])
         {
-            id elem = [stack objectAtIndex:i];
-            if ([elem isKindOfClass:[NSString class]])
+            NSString *variableName = elem;
+            if (variableValues)
             {
-                NSString *variableName = elem;
                 id variableValueObject = [variableValues valueForKey:variableName];
                 if ([variableValueObject isKindOfClass:[NSNumber class]])
                 {
                     // replace element in stack
                     [stack replaceObjectAtIndex:i withObject:[variableValueObject copy]];
                 }
+                else
+                {
+                    // variable not found, treat as 0
+                    [stack replaceObjectAtIndex:i withObject:
+                     [NSNumber numberWithDouble:0]];
+                }
+            }
+            else
+            {
+                // no variable list supplied, all are treated as 0
+                [stack replaceObjectAtIndex:i withObject:
+                 [NSNumber numberWithDouble:0]];
             }
         }
     }
@@ -228,6 +257,22 @@
 + (double)runProgram:(id)program
 {
     return [self runProgram:program usingVariableValues:nil];
+}
+
++ (NSString *)peekAtOperationOnTopOfStack:(NSMutableArray *)stack
+{
+    id topOfStack = [stack lastObject];
+    // don't removeLastObject, this is a peek
+    
+    if ([topOfStack isKindOfClass:[NSString class]] && [self isOperation:topOfStack])
+    {
+        return topOfStack;
+    }
+    else
+    {
+        // not an operation
+        return nil;
+    }
 }
 
 + (NSString *)descriptionOfTopOfStack:(NSMutableArray *)stack
@@ -257,9 +302,28 @@
                     [self descriptionOfTopOfStack:stack]];
         }
         else if ([self isTwoParameterOperation:token]) {
+            NSString *peekOperand2 = [self peekAtOperationOnTopOfStack:stack];
             NSString *operand2 = [self descriptionOfTopOfStack:stack];
+            NSString *peekOperand1 = [self peekAtOperationOnTopOfStack:stack];
             NSString *operand1 = [self descriptionOfTopOfStack:stack];
-            desc = [NSString stringWithFormat:@"(%@ %@ %@)",
+            BOOL currentOpIsMultiplyOrDivide = ([token isEqualToString:@"*"] ||
+                                                [token isEqualToString:@"/"]);
+            BOOL operand1IsAddOrSubtract = ([peekOperand1 isEqualToString:@"+"] ||
+                                            [peekOperand1 isEqualToString:@"-"]);
+            BOOL operand2IsAddOrSubtract = ([peekOperand2 isEqualToString:@"+"] || 
+                                            [peekOperand2 isEqualToString:@"-"]);
+            if (currentOpIsMultiplyOrDivide && operand1IsAddOrSubtract)
+            {
+                // wrap if operand operation is lower priority
+                operand1 = [NSString stringWithFormat:@"(%@)", operand1];
+            }
+            if ((currentOpIsMultiplyOrDivide && operand2IsAddOrSubtract) ||
+                [peekOperand2 isEqualToString:@"+/-"])
+            {
+                // operand 2 also needs parens if it is a sign change operator
+                operand2 = [NSString stringWithFormat:@"(%@)", operand2];
+            }
+            desc = [NSString stringWithFormat:@"%@ %@ %@",
                     operand1, token, operand2];
         }
     }
@@ -274,13 +338,13 @@
     
     if ([program isKindOfClass:[NSArray class]]) {
         stack = [program mutableCopy];
-    }
-    
-    while (stack.count) {
-        desc = [desc stringByAppendingString:[self descriptionOfTopOfStack:stack]];
-        if (stack.count) {
-            // separate with commas
-            desc = [desc stringByAppendingString:@", "];
+        
+        while (stack.count) {
+            desc = [desc stringByAppendingString:[self descriptionOfTopOfStack:stack]];
+            if (stack.count) {
+                // separate with commas
+                desc = [desc stringByAppendingString:@", "];
+            }
         }
     }
     
@@ -291,11 +355,13 @@
 {
     NSMutableSet *variablesUsed = [[NSMutableSet alloc] init];
     
-    for (id elem in program)
-    {
-        if ([elem isKindOfClass:[NSString class]] && [self isVariable:elem])
+    if ([program isKindOfClass:[NSArray class]]) {
+        for (id elem in program)
         {
-            [variablesUsed addObject:elem];
+            if ([elem isKindOfClass:[NSString class]] && [self isVariable:elem])
+            {
+                [variablesUsed addObject:elem];
+            }
         }
     }
     
